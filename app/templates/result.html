@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="result-header">
+    <h2>Analysis Results</h2>
+    <div style="display: flex; gap: 1rem;">
+        <a href="{{ url_for('download_report') }}" class="btn btn-primary">Download PDF Report</a>
+    </div>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h3>MRI Scan</h3>
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <div>
+                <p style="text-align: center; color: var(--secondary);">Original</p>
+                <img src="{{ url_for('static', filename=image_path) }}" alt="MRI Scan"
+                    style="max-width: 100%; height: auto; border-radius: 0.5rem; max-height: 300px;">
+            </div>
+            {% if heatmap_path %}
+            <div>
+                <p style="text-align: center; color: var(--secondary);">AI Attention (Grad-CAM)</p>
+                <img src="{{ url_for('static', filename=heatmap_path) }}" alt="Heatmap"
+                    style="max-width: 100%; height: auto; border-radius: 0.5rem; max-height: 300px;">
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if slice_paths %}
+    <div class="card">
+        <h3>3D Slice Viewer</h3>
+        <p style="color: var(--text-light); margin-bottom: 1rem;">Use the slider to scroll through the MRI slices.</p>
+        <div style="text-align: center;">
+            <img id="sliceViewer" src="{{ url_for('static', filename=slice_paths[slice_paths|length // 2]) }}"
+                style="max-width: 100%; height: auto; border-radius: 0.5rem; max-height: 400px; margin-bottom: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+
+            <div style="display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 0.5rem;">
+                <span style="font-weight: 600; color: var(--primary);">Slice: <span id="sliceIndex">{{
+                        (slice_paths|length // 2) + 1 }}</span> / {{ slice_paths|length }}</span>
+            </div>
+
+            <input type="range" min="0" max="{{ slice_paths|length - 1 }}" value="{{ slice_paths|length // 2 }}"
+                class="slider" id="sliceSlider" style="width: 80%; cursor: pointer; accent-color: var(--primary);">
+        </div>
+
+        <script>
+            const slices = {{ slice_paths | tojson }};
+            const slider = document.getElementById('sliceSlider');
+            const viewer = document.getElementById('sliceViewer');
+            const indexDisplay = document.getElementById('sliceIndex');
+
+            slider.oninput = function () {
+                const index = this.value;
+                // Construct URL correctly using the base static path
+                // We need to handle the fact that slices contains relative paths like 'slices_uuid/slice_001.jpg'
+                // and url_for('static', filename='') returns '/static/'
+                const baseUrl = "{{ url_for('static', filename='') }}";
+                viewer.src = baseUrl + slices[index];
+                indexDisplay.textContent = parseInt(index) + 1;
+            }
+        </script>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h3>Diagnosis</h3>
+        <h4 style="font-size: 1.5rem; color: var(--primary); margin: 0.5rem 0;">{{ tumor_info.name }}</h4>
+        <p>{{ tumor_info.description }}</p>
+
+        <h4 style="margin-top: 1.5rem;">Confidence Scores</h4>
+        {% for label, score in confidence_scores.items()|sort(attribute='1', reverse=True) %}
+        <div style="margin-bottom: 0.5rem;">
+            <div style="display: flex; justify-content: space-between;">
+                <span>{{ label|replace('_', ' ')|title }}</span>
+                <span>{{ "%.2f"|format(score) }}%</span>
+            </div>
+            <div class="confidence-bar">
+                <div class="confidence-fill" style="width: {{ score }}%;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if tumor_info.stages or tumor_info.treatment %}
+<div class="card">
+    <h3>Medical Information</h3>
+    <div class="grid">
+        {% if tumor_info.stages %}
+        <div>
+            <h4>Stages / Grades</h4>
+            <ul>
+                {% for stage, desc in tumor_info.stages.items() %}
+                <li><strong>{{ stage }}:</strong> {{ desc }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if tumor_info.treatment %}
+        <div>
+            <h4>Treatment Options</h4>
+            <ul>
+                {% for treatment in tumor_info.treatment %}
+                <li>{{ treatment }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Dr. AI Chat Widget -->
+<div class="chat-widget" id="chatWidget">
+    <div class="chat-header" onclick="toggleChat()">
+        <span>💬 Ask Dr. Neuro AI</span>
+        <span id="chatToggleIcon">▲</span>
+    </div>
+    <div class="chat-body" id="chatBody">
+        <div class="chat-messages" id="chatMessages">
+            <div class="message ai-message">
+                Hello! I'm Dr. Neuro. I can help explain your medical scan results. What would you like to know?
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" placeholder="Type your question..." onkeypress="handleKeyPress(event)">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .chat-widget {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 350px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        overflow: hidden;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .chat-header {
+        background: var(--primary);
+        color: white;
+        padding: 15px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+    }
+
+    .chat-body {
+        display: none;
+        /* Hidden by default */
+        height: 400px;
+        flex-direction: column;
+    }
+
+    .chat-messages {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+        background: #f8fafc;
+    }
+
+    .message {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        max-width: 80%;
+    }
+
+    .ai-message {
+        background: #e2e8f0;
+        color: #1e293b;
+        align-self: flex-start;
+    }
+
+    .user-message {
+        background: var(--primary);
+        color: white;
+        align-self: flex-end;
+        margin-left: auto;
+    }
+
+    .chat-input-area {
+        padding: 10px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        gap: 10px;
+    }
+
+    .chat-input-area input {
+        flex: 1;
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 5px;
+        outline: none;
+    }
+
+    .chat-input-area button {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+</style>
+
+<script>
+    function toggleChat() {
+        const body = document.getElementById('chatBody');
+        const icon = document.getElementById('chatToggleIcon');
+        if (body.style.display === 'flex') {
+            body.style.display = 'none';
+            icon.textContent = '▲';
+        } else {
+            body.style.display = 'flex';
+            icon.textContent = '▼';
+        }
+    }
+
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        if (!message) return;
+
+        // Add user message
+        addMessage(message, 'user-message');
+        input.value = '';
+
+        // Show loading
+        const loadingId = addMessage('Thinking...', 'ai-message');
+
+        try {
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: message }),
+            });
+
+            const data = await response.json();
+
+            // Remove loading and add AI response
+            document.getElementById(loadingId).remove();
+            addMessage(data.response, 'ai-message');
+        } catch (error) {
+            document.getElementById(loadingId).remove();
+            addMessage('Sorry, I encountered an error.', 'ai-message');
+        }
+    }
+
+    function addMessage(text, className) {
+        const messages = document.getElementById('chatMessages');
+        const div = document.createElement('div');
+        div.className = `message ${className}`;
+        div.textContent = text;
+        div.id = 'msg-' + Date.now();
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+        return div.id;
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero">
+    <h1>Advanced Medical Image Analysis</h1>
+    <p>Fast, accurate, and AI-powered analysis of Brain, Eye, and Lung scans.</p>
+    <a href="{{ url_for('register') }}" class="btn btn-primary">Get Started</a>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <h3>🤖 Multi-Disease AI</h3>
+        <p>Uses state-of-the-art Deep Learning to detect Brain Tumors, Diabetic Retinopathy, and Lung Cancer.</p>
+    </div>
+    <div class="card">
+        <h3>⚡ Instant Results</h3>
+        <p>Get diagnosis and confidence scores in seconds.</p>
+    </div>
+    <div class="card">
+        <h3>📄 PDF Reports</h3>
+        <p>Download comprehensive medical reports for your records.</p>
+    </div>
+</div>
+{% endblock %}

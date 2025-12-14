@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="result-header">
+    <h2>Analysis History</h2>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">New Analysis</a>
+</div>
+
+{% if history %}
+<div class="grid">
+    {% for record in history %}
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+            <div>
+                <h3 style="margin: 0;">{{ record.patient_name }}</h3>
+                <small style="color: var(--secondary);">{{ record.date.strftime('%Y-%m-%d %H:%M') }}</small>
+            </div>
+            <span
+                style="background: var(--primary); color: white; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.875rem;">
+                {% if record.analysis_type == 'eye' %}
+                {{ eye_info.get(record.prediction, {}).get('name', record.prediction) }}
+                {% elif record.analysis_type == 'lung' %}
+                {{ lung_info.get(record.prediction, {}).get('name', record.prediction) }}
+                {% else %}
+                {{ tumor_info.get(record.prediction, {}).get('name', record.prediction) }}
+                {% endif %}
+            </span>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+            <img src="{{ url_for('static', filename=record.image_path) }}" alt="Scan"
+                style="width: 100%; height: 200px; object-fit: cover; border-radius: 0.5rem;">
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="{{ url_for('download_historical_report', record_id=record._id) }}" class="btn btn-primary"
+                style="flex: 1; text-align: center;">PDF Report</a>
+            <a href="{{ url_for('delete_history', record_id=record._id) }}" class="btn btn-danger"
+                onclick="return confirm('Are you sure you want to delete this record?')"
+                style="flex: 1; text-align: center;">Delete</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align: center; padding: 4rem;">
+    <h3 style="color: var(--secondary);">No history found</h3>
+    <p>Start by performing your first analysis.</p>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary" style="margin-top: 1rem;">Go to Dashboard</a>
+</div>
+{% endif %}
+{% endblock %}

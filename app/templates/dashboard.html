@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <h2 style="text-align: center; margin-bottom: 2rem;">New Analysis</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="patient_name">Patient Name</label>
+            <input type="text" id="patient_name" name="patient_name" class="form-control" required
+                placeholder="Enter patient name">
+        </div>
+
+        <div class="form-group">
+            <label for="analysis_type">Analysis Type</label>
+            <select id="analysis_type" name="analysis_type" class="form-control">
+                <option value="brain">Brain Tumor (MRI)</option>
+                <option value="eye">Diabetic Retinopathy (Eye Scan)</option>
+                <option value="lung">Lung Cancer (CT Scan)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="file">Medical Scan Image</label>
+            <div style="border: 2px dashed #cbd5e1; padding: 2rem; text-align: center; border-radius: 0.5rem; cursor: pointer;"
+                onclick="document.getElementById('file').click()">
+                <p style="margin-bottom: 0.5rem;">Click to upload or drag and drop</p>
+                <small style="color: var(--secondary);">Supported formats: DICOM, NIfTI, JPG, PNG</small>
+            </div>
+            <input type="file" id="file" name="file" style="display: none;"
+                onchange="document.querySelector('.file-name').textContent = this.files[0].name">
+            <p class="file-name" style="text-align: center; margin-top: 0.5rem; font-weight: 500;"></p>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Analyze Scan</button>
+    </form>
+</div>
+{% endblock %}
