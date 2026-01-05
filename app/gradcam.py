@@ -6,13 +6,13 @@ import os
 def get_gradcam_heatmap(model, img_array, target_layer_name=None):
     """
     Generates Grad-CAM heatmap for a given image and model.
-    Supports both nested VGG16 (Brain) and standard MobileNetV2 (Eye).
+    Supports both nested EfficientNetB0 (Brain) and standard MobileNetV2 (Eye).
     """
     # Strategy for EfficientNetB0 (All models now use EfficientNetB0)
     try:
         # EfficientNetB0 top_activation layer is usually 'top_activation' or 'top_conv'
         # Let's target the last convolutional layer before pooling
-        if target_layer_name is None or target_layer_name in ['block5_conv3', 'out_relu']: # Handle old layer names
+        if target_layer_name is None:
             target_layer_name = 'top_activation'
             
         try:

@@ -66,6 +66,10 @@
     <div class="card">
         <h3>Diagnosis</h3>
         <h4 style="font-size: 1.5rem; color: var(--primary); margin: 0.5rem 0;">{{ tumor_info.name }}</h4>
+        {% if predicted_stage %}
+        <p style="font-weight: bold; font-size: 1.1rem; color: #e67e22; margin-bottom: 0.5rem;">Predicted Stage/Grade:
+            {{ predicted_stage }}</p>
+        {% endif %}
         <p>{{ tumor_info.description }}</p>
 
         <h4 style="margin-top: 1.5rem;">Confidence Scores</h4>
@@ -121,7 +125,9 @@
     <div class="chat-body" id="chatBody">
         <div class="chat-messages" id="chatMessages">
             <div class="message ai-message">
-                Hello! I'm Dr. Neuro. I can help explain your medical scan results. What would you like to know?
+                Hello! I'm Dr. Neuro AI. I can help explain your medical scan results and provide information about
+                NeuroDetect AI and the diseases it analyzes (Brain Tumors, Diabetic Retinopathy, and Lung Cancer). How
+                can I assist you today?
             </div>
         </div>
         <div class="chat-input-area">

@@ -231,9 +231,7 @@ def dashboard():
                 import app.gradcam as gradcam
                 print(f"Generating Grad-CAM heatmap for {analysis_type} model...")
                 
-                target_layer = 'block5_conv3' if analysis_type == 'brain' else 'out_relu'
-                if analysis_type == 'lung':
-                    target_layer = 'block5_conv3' # Assuming VGG-like architecture for lung model too
+                target_layer = None # Let gradcam.py find the last conv layer automatically
                 
                 heatmap = gradcam.get_gradcam_heatmap(active_model, img, target_layer_name=target_layer)
                 
@@ -247,6 +245,31 @@ def dashboard():
                 import traceback
                 traceback.print_exc()
 
+            # Determine Stage/Grade
+            predicted_stage = None
+            if analysis_type == 'lung' and predicted_class != 'Normal':
+                # Simplified staging logic for demo purposes
+                if top_confidence > 90:
+                    predicted_stage = "Stage I"
+                elif top_confidence > 80:
+                    predicted_stage = "Stage II"
+                elif top_confidence > 70:
+                    predicted_stage = "Stage III"
+                else:
+                    predicted_stage = "Stage IV"
+            elif analysis_type == 'brain' and predicted_class != 'no_tumor':
+                if top_confidence > 90:
+                    predicted_stage = "Grade I"
+                elif top_confidence > 80:
+                    predicted_stage = "Grade II"
+                elif top_confidence > 70:
+                    predicted_stage = "Grade III"
+                else:
+                    predicted_stage = "Grade IV"
+            elif analysis_type == 'eye':
+                stage_map = {'0': 'No DR', '1': 'Stage 1 (Mild)', '2': 'Stage 2 (Moderate)', '3': 'Stage 3 (Severe)', '4': 'Stage 4 (Proliferative)'}
+                predicted_stage = stage_map.get(predicted_class)
+
             if MONGODB_AVAILABLE:
                 history_record = {
                     'username': session['user'],
@@ -255,6 +278,7 @@ def dashboard():
                     'image_path': filename,
                     'heatmap_path': heatmap_filename,
                     'prediction': predicted_class,
+                    'predicted_stage': predicted_stage,
                     'confidence_scores': confidence_scores,
                     'date': datetime.now()
                 }
@@ -267,6 +291,7 @@ def dashboard():
                     'image_path': filename,
                     'heatmap_path': heatmap_filename,
                     'prediction': predicted_class,
+                    'predicted_stage': predicted_stage,
                     'confidence_scores': confidence_scores,
                     'date': datetime.now()
                 }
@@ -278,6 +303,7 @@ def dashboard():
                                  heatmap_path=heatmap_filename,
                                  slice_paths=slice_paths, # Pass slice paths
                                  prediction=predicted_class, 
+                                 predicted_stage=predicted_stage,
                                  patient_name=patient_name,
                                  confidence_scores=confidence_scores,
                                  tumor_info=info_dict.get(predicted_class, {}))
@@ -304,6 +330,7 @@ def download_report():
             image_path = os.path.join('app', 'static', record['image_path'])
             heatmap_path = os.path.join('app', 'static', record['heatmap_path']) if record.get('heatmap_path') else None
             prediction = record['prediction']
+            predicted_stage = record.get('predicted_stage')
             confidence_scores = record.get('confidence_scores', {})
             analysis_date = record['date']
         elif session.get('last_analysis'):
@@ -312,6 +339,7 @@ def download_report():
             image_path = os.path.join('app', 'static', record['image_path'])
             heatmap_path = os.path.join('app', 'static', record['heatmap_path']) if record.get('heatmap_path') else None
             prediction = record['prediction']
+            predicted_stage = record.get('predicted_stage')
             confidence_scores = record.get('confidence_scores', {})
             analysis_date = record['date']
         else:
@@ -333,6 +361,7 @@ def download_report():
             patient_name=patient_name,
             image_path=image_path,
             prediction=prediction,
+            predicted_stage=predicted_stage,
             confidence_scores=confidence_scores,
             analysis_date=analysis_date,
             heatmap_path=heatmap_path,
@@ -378,6 +407,7 @@ def download_historical_report(record_id):
             patient_name=record['patient_name'],
             image_path=image_path,
             prediction=record['prediction'],
+            predicted_stage=record.get('predicted_stage'),
             confidence_scores=record.get('confidence_scores', {}),
             analysis_date=record['date'],
             heatmap_path=heatmap_path,
@@ -473,84 +503,4 @@ def history():
     user_history = list(history_col.find({'username': session['user']}).sort('date', -1))
     return render_template('history.html', history=user_history, tumor_info=TUMOR_INFO, eye_info=EYE_INFO, lung_info=LUNG_INFO)
 
-@app.route('/feedback', methods=['POST'])
-@login_required
-def feedback():
-    if not MONGODB_AVAILABLE:
-        flash('Feedback feature requires MongoDB.', 'error')
-        return redirect(url_for('dashboard'))
-        
-    try:
-        analysis_id = request.form.get('analysis_id')
-        correct_diagnosis = request.form.get('correct_diagnosis')
-        comments = request.form.get('comments')
-        
-        from app import db
-        feedback_col = db['feedback']
-        
-        feedback_record = {
-            'analysis_id': analysis_id,
-            'username': session['user'],
-            'correct_diagnosis': correct_diagnosis,
-            'comments': comments,
-            'date': datetime.now()
-        }
-        
-        feedback_col.insert_one(feedback_record)
-        flash('Thank you for your feedback! This helps improve our AI.', 'success')
-        
-    except Exception as e:
-        flash(f'Error submitting feedback: {str(e)}', 'error')
-        
-    return redirect(url_for('history'))
 
-@app.route('/email_report/<record_id>')
-@login_required
-def email_report(record_id):
-    try:
-        from bson import ObjectId
-        from app.utils import send_email_report
-        
-        record = history_col.find_one({'_id': ObjectId(record_id), 'username': session['user']})
-        if not record:
-            flash('Analysis record not found or access denied.', 'error')
-            return redirect(url_for('history'))
-        
-        # Get user email
-        user = users_col.find_one({'username': session['user']})
-        if not user or 'email' not in user:
-            flash('User email not found.', 'error')
-            return redirect(url_for('history'))
-            
-        image_path = os.path.join('app', 'static', record['image_path'])
-        heatmap_path = os.path.join('app', 'static', record['heatmap_path']) if record.get('heatmap_path') else None
-        
-        current_analysis_type = record.get('analysis_type', 'brain')
-        current_info_dict = TUMOR_INFO
-        if current_analysis_type == 'eye':
-            current_info_dict = EYE_INFO
-        elif current_analysis_type == 'lung':
-            current_info_dict = LUNG_INFO
-
-        pdf_buffer = generate_pdf_report(
-            patient_name=record['patient_name'],
-            image_path=image_path,
-            prediction=record['prediction'],
-            confidence_scores=record.get('confidence_scores', {}),
-            analysis_date=record['date'],
-            heatmap_path=heatmap_path,
-            info_dict=current_info_dict
-        )
-        
-        safe_patient_name = "".join(c for c in record['patient_name'] if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        filename = f"Analysis_Report_{safe_patient_name}_{record['date'].strftime('%Y%m%d_%H%M%S')}.pdf"
-        
-        if send_email_report(user['email'], record['patient_name'], pdf_buffer, filename):
-            flash(f'Report emailed successfully to {user["email"]}', 'success')
-        else:
-            flash('Failed to send email. Please check server configuration.', 'error')
-            
-    except Exception as e:
-        flash(f'Error emailing report: {str(e)}', 'error')
-        
-    return redirect(url_for('history'))

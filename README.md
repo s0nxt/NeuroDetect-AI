@@ -93,7 +93,8 @@ NeuroDetect-AI/
 │   ├── gradcam.py              # XAI / Heatmap Generation Logic
 │   ├── static/                 # CSS, JS, and Temporary Uploads
 │   └── templates/              # HTML Templates (Jinja2)
-├── models/                     # AI Models (Not included in repo to save space)
+├── models/                     # AI Models
+├── scripts/                    # Training Scripts for Deep Learning Models
 ├── run.py                      # Application Entry Point
 ├── requirements.txt            # Project Dependencies
 └── README.md                   # Documentation

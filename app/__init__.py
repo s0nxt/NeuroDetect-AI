@@ -68,7 +68,5 @@ if os.path.exists(lung_model_path):
 else:
     print(f"Lung model not found at {lung_model_path}")
 
-# Default model for backward compatibility
-model = brain_model
 
 from app import routes
