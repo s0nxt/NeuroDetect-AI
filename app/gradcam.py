@@ -8,7 +8,7 @@ def get_gradcam_heatmap(model, img_array, target_layer_name=None):
     Generates Grad-CAM heatmap for a given image and model.
     Supports both nested EfficientNetB0 (Brain) and standard MobileNetV2 (Eye).
     """
-    # Strategy for EfficientNetB0 (All models now use EfficientNetB0)
+    
     try:
         # EfficientNetB0 top_activation layer is usually 'top_activation' or 'top_conv'
         # Let's target the last convolutional layer before pooling
@@ -31,22 +31,10 @@ def get_gradcam_heatmap(model, img_array, target_layer_name=None):
                         last_conv_layer = layer
                         break
         
-        # Create a model matching Inputs -> [ConvOutput, Predictions]
-        # Since we use functional API with a custom top, we need to inspect the model structure.
-        # Our training scripts wrap EfficientNetB0 in a Functional Model.
-        
-        # model.layers[0] might be the EfficientNetB0 Functional model if nested?
-        # In current training scripts:
-        # model = Model(inputs=base_model.input, outputs=predictions)
-        # So it is a flat Functional model? No, base_model is a Model object used in graph.
-        
-        # If 'model' is the full deployed model:
-        # It has inputs -> efficientnet_layers -> global_pooling -> dense -> ...
-        
         grad_model = tf.keras.Model(
             inputs=model.inputs,
             outputs=[last_conv_layer.output, model.output]
-        )
+        ) # Creating the "Gradient Model" 
 
     except Exception as e:
         print(f"Error building Grad-CAM model: {e}")

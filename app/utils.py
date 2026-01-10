@@ -61,9 +61,9 @@ TUMOR_INFO = {
         'name': 'Pituitary Tumor',
         'description': 'Pituitary tumors develop in the pituitary gland and can affect hormone production. Most are benign.',
         'stages': {
-            'Microadenoma': 'Small tumor (<10mm), usually benign',
-            'Macroadenoma': 'Larger tumor (>10mm), may cause compression',
-            'Invasive': 'Extends beyond sella turcica'
+            'Grade I': 'Small tumor (<10mm), usually benign',
+            'Grade II': 'Larger tumor (>10mm), may cause compression',
+            'Grade III': 'Extends beyond sella turcica'
         },
         'symptoms': ['Hormonal imbalances', 'Vision problems', 'Headaches', 'Fatigue', 'Mood changes'],
         'treatment': ['Medication', 'Surgery', 'Radiation therapy', 'Hormone replacement'],
@@ -492,8 +492,6 @@ def process_nifti_slices(nifti_path, output_dir):
 def preprocess_image(image_path, target_size=(224, 224)):
     img = load_img(image_path, target_size=target_size)
     img = img_to_array(img)
-    # EfficientNet preprocess_input expects pixels in [0, 255] range
-    # It does NOT require dividing by 255.0 manually
     img = np.expand_dims(img, axis=0)
     img = preprocess_input(img)
     return img
